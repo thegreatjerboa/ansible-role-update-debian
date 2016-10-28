@@ -1,0 +1,22 @@
+# Upgrade Debian/Ubuntu based systems and reboot if necessary.
+---
+- name: Check if there are packages available to be installed/upgraded
+  command: /usr/lib/update-notifier/apt-check --package-names
+  register: packages
+- name: Upgrade all packages to the latest version
+  apt: update_cache=yes upgrade=dist
+  when: packages.stderr != ""
+- name: Check if a reboot is required
+  register: file
+  stat: path=/var/run/reboot-required get_md5=no
+- name: Reboot the server
+  command: /sbin/reboot
+  when: file.stat.exists == true
+- name: pause
+  pause: seconds=20
+  when: file.stat.exists == true
+- name: Waiting until boot is done
+  wait_for: host={{inventory_hostname}} port={{ansible_port}} delay=10 timeout=120
+  connection: local
+  sudo: false
+  when: file.stat.exists == true
